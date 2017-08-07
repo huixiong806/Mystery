@@ -8,18 +8,18 @@
 #define BLACK 1
 #define WHITE -1
 #define INF 999999999999999.0
-#define LINF 999999999999.0
+#define LINF 100000000.0
 using namespace std;
 const double valmat[8][8]=
 {
-	{200,-35,20,20,20,20,-35,200},
-	{-35,-80,5,5,5,5,-80,-35},
+	{200,-25,20,20,20,20,-25,200},
+	{-25,-50,5,5,5,5,-50,-25},
 	{20,5,1,1,1,1,5,20},
 	{20,5,1,1,1,1,5,20},
 	{20,5,1,1,1,1,5,20},
 	{20,5,1,1,1,1,5,20},
-	{-35,-80,5,5,5,5,-80,-35},
-	{200,-35,20,20,20,20,-35,200}
+	{-25,-50,5,5,5,5,-50,-25},
+	{200,-25,20,20,20,20,-25,200}
 };
 int sign(int x)
 {
@@ -94,7 +94,7 @@ struct board
 		for(int i=0;i<8;++i)
 			for(int j=0;j<8;++j)
 				res+=chess[i][j];
-		return sign(res);
+		return res;
 	}
 	void output()
 	{
@@ -131,17 +131,35 @@ struct board
 	{
 		return !check(1)&&!check(-1);
 	}
+	int emptyCount()
+	{
+		int res=0;
+		for(int i=0;i<8;++i)
+			for(int j=0;j<8;++j)
+				if(chess[i][j]==NONE)++res;
+		return res;
+	}
+	pair<int,int> currentScore()
+	{
+		int resA=0,resB=0;
+		for(int i=0;i<8;++i)
+			for(int j=0;j<8;++j)
+				if(chess[i][j]==WHITE)++resB;
+				else if(chess[i][j]==BLACK)++resA;
+		return make_pair(resA,resB);
+	}
 };
 board brd;
-int maxDepth=8;
 int bestMove;
 board game;
+int maxDepth=0;
+int AItype;
 double find_best_move(int type,int depth,double alpha,double beta)
 {
-	if(depth==maxDepth)return (double)type*brd.eval();
 	if(brd.over())return (double)type*(double)brd.getWinLose()*LINF;
+	if(depth==0)return (double)type*brd.eval();
 	board sav=brd;
-	if(!brd.check(type))return max(alpha,-find_best_move(-type,depth+1,-beta,-alpha));
+	if(!brd.check(type))return max(alpha,-find_best_move(-type,depth-1,-beta,-alpha));
 	for(int i=0;i<8;++i)
 	{
 		for(int j=0;j<8;++j)
@@ -149,13 +167,19 @@ double find_best_move(int type,int depth,double alpha,double beta)
 			if(brd.canPut(type,i,j))
 			{
 				brd.put(type,i,j);
-				double score=-find_best_move(-type,depth+1,-beta,-alpha);
+				double score=-find_best_move(-type,depth-1,-beta,-alpha);
 				brd=sav;
 				if(score>=beta)return score;
 				if(score>alpha)
 				{
-					if(depth==1)bestMove=i<<3|j;
-					alpha=score;
+					if(depth==maxDepth)
+					{
+						if(AItype||rand()%20)
+						{
+							bestMove=i<<3|j;
+							alpha=score;
+						}
+					}else alpha=score;
 				}
 			}
 		}
@@ -166,19 +190,23 @@ void AImove(int type)
 {
 	bestMove=-1;
 	brd=game;
-	double score=find_best_move(type,1,-INF,INF);
-	cout<<score<<" "<<(bestMove>>3)+1<<(char)((bestMove&0x7)+'A')<<endl;
+	maxDepth=8;
+	int emptyCount=brd.emptyCount();
+	if(emptyCount<=15)maxDepth=999;
+	double score=find_best_move(type,maxDepth,-INF,INF);
+	cout<<""<<score<<" "<<(bestMove>>3)+1<<(char)((bestMove&0x7)+'A')<<endl;
 	game.put(type,bestMove>>3,bestMove&0x7);
 }
 int main()
 {
 	system("color F0");
 	srand(time(0));
-	cout<<"Mystery (Alpha 1.01)"<<endl;
+	cout<<"Mystery (Alpha 1.03)"<<endl;
 	cout<<"copyright orangebird 2017."<<endl;
 	game.newGame();
+	cout<<"Input a number,1=AI Black,-1=AI white,0 AI both:"<<endl;
 	int type=BLACK;
-	int AItype=WHITE;
+	cin>>AItype;
 	while(!game.over())
 	{
 		game.output();
@@ -187,7 +215,7 @@ int main()
 			type=-type;
 			continue;
 		}
-		if(type==AItype)
+		if(!AItype||AItype==type)
 		{
 			cout<<(type>0?"Black":"White")<<" Move:"<<endl; 
 			
@@ -205,8 +233,11 @@ int main()
 	}
 	game.output();
 	type=game.getWinLose();
-	if(type==WHITE)cout<<"white win!";
-	else if(type==BLACK)cout<<"black win!"<<endl;
+	cout<<game.currentScore().first<<":"<<game.currentScore().second<<endl;
+	if(type<0)cout<<"white win!"<<endl;
+	else if(type>0)cout<<"black win!"<<endl;
 	else cout<<"tie!"<<endl;
+	cout<<"input 'e' to exit"<<endl;
+	while(getchar()!='e');
 	return 0;
 }
